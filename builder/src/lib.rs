@@ -50,6 +50,18 @@ pub fn derive(input: TokenStream) -> TokenStream {
                 self.current_dir = Some(current_dir);
                 self
             }
+
+            fn build(&mut self) -> Result<#ident, Box<dyn std::error::Error>> {
+                match (&self.executable, &self.args, &self.env, &self.current_dir) {
+                    (Some(executable), Some(args), Some(env), Some(current_dir)) => Ok(#ident {
+                        executable: executable.clone(),
+                        args: args.clone(),
+                        env: env.clone(),
+                        current_dir: current_dir.clone()
+                    }),
+                    _ => Err("Fields remain uninitialized, cant build yet.".into())
+                }
+            }
         }
     }
     .into()
