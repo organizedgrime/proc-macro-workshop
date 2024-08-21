@@ -2,38 +2,49 @@ use proc_macro::{Span, TokenStream};
 use quote::{format_ident, quote};
 use syn::{parse_macro_input, Data, DeriveInput, Fields, GenericArgument, Ident, Type};
 
+#[derive(Debug)]
+struct Field {
+    pub f_ident: Ident,
+    pub f_type: Type,
+    pub f_optional: bool,
+}
+
 #[proc_macro_derive(Builder)]
 pub fn derive(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
 
     let option_ident = Ident::new("Option", Span::call_site().into());
 
-    println!("ast: {:#?}", ast);
     if let Data::Struct(data_struct) = ast.data.clone() {
         if let Fields::Named(namedfields) = data_struct.fields {
             //namedfields.named.into_iter().map(|v} v.)
-            for field in namedfields.named {
-                let field_ident = field.ident;
-                let field_type = field.ty.clone();
-                if let Type::Path(type_path) = field.ty {
-                    if type_path.path.segments[0].ident == option_ident {
-                        if let syn::PathArguments::AngleBracketed(args) =
-                            &type_path.path.segments[0].arguments
-                        {
-                            if let GenericArgument::Type(field_type) = &args.args[0] {
+            let mut fields: Vec<Field> = namedfields
+                .named
+                .into_iter()
+                .map(|field| Field {
+                    f_ident: field.ident.unwrap(),
+                    f_type: field.ty,
+                    f_optional: false,
+                })
+                .collect();
 
-                                // (field_ident, t, true)
+            for field in fields.iter_mut() {
+                if let Type::Path(type_path) = &field.f_type {
+                    let path_segment = &type_path.path.segments[0];
+                    if path_segment.ident == option_ident {
+                        if let syn::PathArguments::AngleBracketed(args) = &path_segment.arguments {
+                            if let GenericArgument::Type(f_type) = &args.args[0] {
+                                field.f_type = f_type.clone();
+                                field.f_optional = true;
                             }
                         }
                     }
                 }
             }
+            println!("fields: {:#?}", fields);
 
             println!("WARNING: this AST isn't applicable!");
-            return quote! {
-                #ast
-            }
-            .into();
+            return quote! {}.into();
         }
     }
 
@@ -81,9 +92,6 @@ pub fn derive(input: TokenStream) -> TokenStream {
             }
 
             fn build(&mut self) -> Result<#ident, Box<dyn std::error::Error>> {
-
-                if ast.
-
                 match (&self.executable, &self.args, &self.env, &self.current_dir) {
                     (Some(executable), Some(args), Some(env), Some(current_dir)) => Ok(#ident {
                         executable: executable.clone(),
